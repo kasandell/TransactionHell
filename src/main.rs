@@ -20,7 +20,7 @@ async fn main() {
 
     let user_a = transactional::<User, DataError, _>(move |txn| {
         Box::pin(async {
-            let user = User::insert_accepts_conn(txn, InsertableUser {
+            let user = User::insert(txn, InsertableUser {
                 name: name_a
             }).await?;
             Ok(user)
@@ -32,10 +32,10 @@ async fn main() {
 
     let failure: Result<User, DataError> = transactional(move |txn| {
         Box::pin(async {
-            let user = User::insert_accepts_conn(txn, InsertableUser {
+            let user = User::insert(txn, InsertableUser {
                 name: name_b
             }).await?;
-            let found = User::get_accepts_conn(txn, name_b).await?;
+            let found = User::transactional_get(txn, name_b).await?;
             println!("Found user {}", found.name);
             Err(RollbackTransaction).map_err(DataError::from)
         })
