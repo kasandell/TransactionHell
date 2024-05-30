@@ -17,24 +17,29 @@ async fn main() {
     println!("Hello, world!");
     let name_a = "Kyle";
     let name_b = "Not Kyle";
-    let user_a = transactional::<User, DataError, _>(|txn| async move {
-        let user = User::insert(txn, InsertableUser {
-            name: name_a
-        }).await?;
-        Ok(user)
-    }.scope_boxed()).await.expect("creates user");
+
+    let user_a = transactional::<User, DataError, _>(move |txn| {
+        Box::pin(async {
+            let user = User::insert(txn, InsertableUser {
+                name: name_a
+            }).await?;
+            Ok(user)
+        })
+    }).await.expect("creates user");
     println!("User has name: {}", user_a.name);
     let found = User::get(name_a).await.expect("finds user");
     println!("Found user again: {}", found.name);
 
-    let failure: Result<User, DataError> = transactional(|txn| async move {
-        let user = User::insert(txn, InsertableUser {
-            name: name_b
-        }).await?;
-        let found = User::get(name_b).await?;
-        println!("Found user {}", found.name);
-        Err(RollbackTransaction).map_err(DataError::from)
-    }.scope_boxed()).await;
+    let failure: Result<User, DataError> = transactional(move |txn| {
+        Box::pin(async {
+            let user = User::insert(txn, InsertableUser {
+                name: name_b
+            }).await?;
+            let found = User::transactional_get(txn, name_b).await?;
+            println!("Found user {}", found.name);
+            Err(RollbackTransaction).map_err(DataError::from)
+        })
+    }).await;
 
     let found = User::get(name_b).await;
     match found {

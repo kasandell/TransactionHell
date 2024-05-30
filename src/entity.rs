@@ -3,6 +3,7 @@ use crate::schema::users;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use serde::{Deserialize, Serialize};
+use crate::db::DbConnection;
 use crate::error::DataError;
 use crate::transaction::Transaction;
 
@@ -21,7 +22,15 @@ pub struct InsertableUser<'a> {
 }
 
 impl User {
-    pub async fn insert<'a>(transaction: &mut Transaction<'_>, user: InsertableUser<'a>) -> Result<User, DataError>{
+    pub async fn insert<'a>(transaction: &mut Transaction<'_, '_>, user: InsertableUser<'a>) -> Result<User, DataError>{
+        let user = diesel::insert_into(users::table)
+            .values(user)
+            .get_result::<User>(transaction)
+            .await?;
+        Ok(user)
+    }
+
+    pub async fn insert_accepts_conn<'a>(transaction: &mut DbConnection<'_>, user: InsertableUser<'a>) -> Result<User, DataError>{
         let user = diesel::insert_into(users::table)
             .values(user)
             .get_result::<User>(transaction)
@@ -37,7 +46,14 @@ impl User {
         Ok(user)
     }
 
-    pub async fn transactional_get<'a>(transaction: &mut Transaction<'_>, name: &'a str) -> Result<User, DataError>{
+    pub async fn get_accepts_conn<'a>(transaction: &mut DbConnection<'_>, name: &'a str) -> Result<User, DataError>{
+        let user = users::table.filter(users::name.eq(name))
+            .first::<User>(transaction)
+            .await?;
+        Ok(user)
+    }
+
+    pub async fn transactional_get<'a>(transaction: &mut Transaction<'_, '_>, name: &'a str) -> Result<User, DataError>{
         let user = users::table.filter(users::name.eq(name))
             .first::<User>(transaction)
             .await?;
