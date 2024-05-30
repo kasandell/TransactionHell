@@ -17,14 +17,14 @@ impl <'a> Debug for Transaction<'a> {
 }
 
 impl <'a> Transaction<'a> {
-    pub fn new(conn: &mut DbConnection) -> Self{
+    pub fn new(conn: &'a mut DbConnection<'a>) -> Self{
         Self {
-            conn: conn
+            conn
         }
     }
 }
 
-pub async fn transactional<'a, 'life0, 'async_trait, R, E, F>(
+/*pub async fn transactional<'a, 'life0, 'async_trait, R, E, F>(
     f: F,
 ) -> Result<R, E> //Pin<Box<dyn Future<Output = Result<R, E>> + Send + 'async_trait>>
     where
@@ -44,4 +44,4 @@ pub async fn transactional<'a, 'life0, 'async_trait, R, E, F>(
         })
     }.scope_boxed()).await?;
     Ok(result)
-}
+}*/
