@@ -1,25 +1,27 @@
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 use diesel_async::AsyncConnection;
 use diesel_async::scoped_futures::{ScopedBoxFuture, ScopedFutureExt};
 use futures::future::BoxFuture;
+use parking_lot::Mutex;
 use tokio::runtime::Handle;
 use crate::error::DataError;
 use crate::db::{connection, DbConnection};
 
 #[derive(derive_more::Deref, derive_more::DerefMut)]
-pub struct Transaction<'a> {
-    conn: &'a mut DbConnection<'a>
+pub struct Transaction<'a, 'b: 'a> {
+    conn: &'a mut DbConnection<'b>
 }
 
-impl <'a> Debug for Transaction<'a> {
+impl <'a, 'b> Debug for Transaction<'a, 'b> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Transaction")
     }
 }
 
-impl <'a> Transaction<'a> {
-    pub fn new(conn: &'a mut DbConnection<'a>) -> Self{
+impl <'a, 'b> Transaction<'a, 'b> {
+    pub fn new(conn: &'a mut DbConnection<'b>) -> Self{
         Self {
             conn: conn
         }
@@ -35,9 +37,9 @@ pub async fn transactional<T, E, F>(f: F) -> Result<T, E>
 
     let mut conn = connection().await.map_err(|e| DataError::from(e))?;
     let result = conn.transaction(|mut _conn| async move {
-        //let mut txn = Transaction::new(_conn);
-            //let mut txn = Transaction::new(_conn);
-        f(&mut _conn).await
+        let mut txn = Transaction::new(_conn);
+        let x = f(&mut _conn).await;
+        x
     }.scope_boxed()).await?;
     Ok(result)
 
